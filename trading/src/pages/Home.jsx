@@ -1,7 +1,11 @@
 import React from 'react'
-
+import CurrencyConverter from "../components/Currency";
 const Home = () => {
-  return <div className='dark:text-white'>Home</div>
+  return (
+    <div>
+    <CurrencyConverter />
+    </div>
+  );
 }
 
 export default Home

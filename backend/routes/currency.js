@@ -14,4 +14,10 @@ router.post(
 // Get conversion rate
 router.get("/convert", CurrencyController.getConversionRate);
 
+// Get tokens list
+router.get("/tokens", CurrencyController.getTokens);
+
+// Get supported currencies list
+router.get("/supported-currencies", CurrencyController.getSupportedCurrencies);
+
 module.exports = router;

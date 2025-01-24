@@ -14,7 +14,7 @@ function App() {
       <SharedStateProvider>
         <Layout>
           <Routes>
-            <Route path='/home' element={<Home />} />
+            <Route path='/' element={<Home />} />
             <Route path='/projects' element={<Projects />} />
             <Route path='/websites' element={<Websites />} />
             <Route path='/subscription' element={<Subscription />} />

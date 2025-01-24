@@ -8,7 +8,6 @@ import Partnering from "../views/partnering";
 import JoinUs from "../views/joinUs";
 import Faqs from "../views/faqs";
 import Footer from "../views/footer";
-
 function Home() {
 
   return (
