@@ -1,10 +1,36 @@
-const axios = require("axios");
+const CurrencyService = require("../services/CurrencyService");
 
-const { COINGECKO_API_URL } = require("../config/constant");
+exports.saveCoinsList = async (req, res) => {
+  try {
+    const result = await CurrencyService.fetchAndSaveCoins();
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
 
-exports.getCurrencyData = async (req, res) => {
-  const apiLink = `${COINGECKO_API_URL}/${req.body.coin}`;
-  const currencyData = await axios.get(apiLink);
-  //console.log(currencyData.data.market_data.current_price.usd);
-  res.status(200).json(currencyData.data.market_data.current_price.usd);
+exports.saveSupportedCurrencies = async (req, res) => {
+  try {
+    const result = await CurrencyService.fetchAndSaveSupportedCurrencies();
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.getConversionRate = async (req, res) => {
+  try {
+    const { from, to } = req.query;
+
+    if (!from || !to) {
+      return res
+        .status(400)
+        .json({ error: "Missing required parameters: from, to" });
+    }
+
+    const result = await CurrencyService.getConversionRate(from, to);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };
