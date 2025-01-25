@@ -1,78 +1,83 @@
 import React, { useState, useEffect } from "react";
+import { AsyncPaginate } from "react-select-async-paginate"; // Use named import
 import axios from "axios";
 
 const CurrencyConverter = () => {
-  const [tokens, setTokens] = useState([]);
-  const [supportedCurrencies, setSupportedCurrencies] = useState([]);
-  const [fromCurrency, setFromCurrency] = useState("");
-  const [toCurrency, setToCurrency] = useState("");
+  const [fromCurrency, setFromCurrency] = useState(null); // Use object for value and label
+  const [toCurrency, setToCurrency] = useState(null); // Use object for value and label
   const [amount, setAmount] = useState("");
   const [error, setError] = useState(null);
 
-  // Base API URL from environment variables
   const API_URL = import.meta.env.VITE_BACKEND_API_URL;
 
-  // Fetch tokens and supported currencies on page load
-  useEffect(() => {
-    const fetchTokens = async () => {
-      try {
-        const tokensRes = await axios.get(`${API_URL}/api/currency/tokens`);
+  // Load tokens for AsyncPaginate
+  const loadTokens = async (inputValue, loadedOptions, { page }) => {
+    try {
+      const res = await axios.get(`${API_URL}/tokens`, {
+        params: {
+          q: inputValue || "",
+          page: page || 1,
+          limit: 50,
+        },
+      });
 
-        // Ensure tokensRes.data is an array
-        if (Array.isArray(tokensRes.data)) {
-          setTokens(tokensRes.data);
+      const { tokens, hasMore } = res.data;
 
-          // Autofill the first token as default for "fromCurrency"
-          if (tokensRes.data.length > 0) {
-            setFromCurrency(tokensRes.data[0].id);
-          }
-        } else {
-          throw new Error("Tokens API did not return an array.");
-        }
-      } catch (err) {
-        console.error("Error fetching tokens:", err);
-        setError("Failed to fetch tokens. Please try again later.");
-      }
-    };
+      return {
+        options: tokens.map((token) => ({
+          value: token.id,
+          label: `${token.name} (${token.symbol.toUpperCase()})`,
+        })),
+        hasMore,
+        additional: {
+          page: hasMore ? page + 1 : page,
+        },
+      };
+    } catch (err) {
+      console.error("Error fetching tokens:", err);
+      return { options: [], hasMore: false, additional: { page } };
+    }
+  };
 
-    const fetchSupportedCurrencies = async () => {
-      try {
-        const currenciesRes = await axios.get(`${API_URL}/api/currency/supported-currencies`);
-        // Ensure currenciesRes.data is an array
-        debugger;
-        if (Array.isArray(currenciesRes.data)) {
-          // Map currencies if needed
-          const currencies = currenciesRes.data.map((c) => (typeof c === "object" ? c.symbol : c));
-          setSupportedCurrencies(currencies);
+  // Load currencies for AsyncPaginate
+  const loadCurrencies = async (inputValue, loadedOptions, { page }) => {
+    try {
+      const res = await axios.get(`${API_URL}/supported-currencies`, {
+        params: {
+          q: inputValue || "",
+          page: page || 1,
+          limit: 50,
+        },
+      });
 
-          // Autofill the first supported currency as default for "toCurrency"
-          if (currencies.length > 0) {
-            setToCurrency(currencies[0]);
-          }
-        } else {
-          throw new Error("Supported currencies API did not return an array.");
-        }
-      } catch (err) {
-        console.error("Error fetching supported currencies:", err);
-        setError("Failed to fetch supported currencies. Please try again later.");
-      }
-    };
+      const { currencies, hasMore } = res.data;
 
-    fetchTokens();
-    fetchSupportedCurrencies();
-  }, []);
+      return {
+        options: currencies.map((currency) => ({
+          value: currency.symbol,
+          label: currency.symbol.toUpperCase(),
+        })),
+        hasMore,
+        additional: {
+          page: hasMore ? page + 1 : page,
+        },
+      };
+    } catch (err) {
+      console.error("Error fetching supported currencies:", err);
+      return { options: [], hasMore: false, additional: { page } };
+    }
+  };
 
-  // Fetch conversion amount on currency or token change
+  // Fetch conversion rate when currencies change
   useEffect(() => {
     const fetchConversion = async () => {
       if (!fromCurrency || !toCurrency) return;
 
       try {
-        const res = await axios.get(`${API_URL}/api/currency/convert`, {
-          params: { from: fromCurrency, to: toCurrency },
+        const res = await axios.get(`${API_URL}/convert`, {
+          params: { from: fromCurrency.value, to: toCurrency.value },
         });
-        const rate = res.data.rate;
-        setAmount(rate);
+        setAmount(res.data.rate);
       } catch (err) {
         console.error("Error fetching conversion rate:", err);
         setError("Failed to fetch conversion rate. Please try again later.");
@@ -80,7 +85,49 @@ const CurrencyConverter = () => {
     };
 
     fetchConversion();
-  }, [fromCurrency, toCurrency]);
+  }, [fromCurrency, toCurrency, API_URL]);
+
+  // Enhanced Selector component
+  const Selector = ({ label, value, loadOptions, onChange, placeholder }) => {
+    return (
+      <div className="mb-4">
+        <label className="block text-sm font-medium mb-2">{label}</label>
+        <AsyncPaginate
+          value={value}
+          loadOptions={loadOptions}
+          onChange={onChange}
+          additional={{ page: 1 }}
+          placeholder={placeholder}
+          styles={{
+            control: (base) => ({
+              ...base,
+              backgroundColor: "#1A202C", // Dark mode background
+              color: "white",
+              borderColor: "#2D3748", // Dark border
+            }),
+            menu: (base) => ({
+              ...base,
+              backgroundColor: "#2D3748", // Dark dropdown menu
+              color: "white",
+            }),
+            input: (base) => ({
+              ...base,
+              color: "white", // White text while typing in the search box
+            }),
+            option: (base, state) => ({
+              ...base,
+              backgroundColor: state.isFocused ? "#4A5568" : "#2D3748", // Hover effect
+              color: state.isSelected ? "#E2E8F0" : "white", // Selected text color
+            }),
+            singleValue: (base) => ({
+              ...base,
+              color: "white",
+            }),
+          }}
+        />
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6">
@@ -92,49 +139,28 @@ const CurrencyConverter = () => {
           </div>
         )}
 
-        {/* From Currency Dropdown */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-2">From Currency</label>
-          <select
-            className="w-full bg-gray-700 p-3 rounded-lg"
-            value={fromCurrency}
-            onChange={(e) => setFromCurrency(e.target.value)}
-          >
-            <option value="">Select Currency</option>
-            {Array.isArray(tokens) &&
-              tokens.map((token) => (
-                <option key={token.id} value={token.id}>
-                  {token.name} ({token.symbol.toUpperCase()})
-                </option>
-              ))}
-          </select>
-        </div>
+        <Selector
+          label="From Currency"
+          value={fromCurrency}
+          loadOptions={loadTokens}
+          onChange={setFromCurrency}
+          placeholder="Search or select a token"
+        />
 
-        {/* To Currency Dropdown */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-2">To Currency</label>
-          <select
-            className="w-full bg-gray-700 p-3 rounded-lg"
-            value={toCurrency}
-            onChange={(e) => setToCurrency(e.target.value)}
-          >
-            <option value="">Select Currency</option>
-            {Array.isArray(supportedCurrencies) &&
-              supportedCurrencies.map((currency) => (
-                <option key={currency} value={currency}>
-                  {currency.toUpperCase()}
-                </option>
-              ))}
-          </select>
-        </div>
+        <Selector
+          label="To Currency"
+          value={toCurrency}
+          loadOptions={loadCurrencies}
+          onChange={setToCurrency}
+          placeholder="Search or select a currency"
+        />
 
-        {/* Amount Display */}
         <div className="mb-4">
           <label className="block text-sm font-medium mb-2">Amount</label>
           <input
             type="text"
             className="w-full bg-gray-700 p-3 rounded-lg"
-            value={amount}
+            value={amount || ""}
             readOnly
           />
         </div>
